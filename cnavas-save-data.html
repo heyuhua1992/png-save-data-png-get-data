@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
+  <title>劫持HTML画布和PNG图像以存储任意文本数据</title>
+</head>
+<body>
+
+
+<script>
+  let myObjaData = {
+    name: '何煜华',
+    todo: '今天要买拖鞋，买被套'
+  }
+// 1. 将对象转换为字节数组
+  // 对象转字符串
+  let strData = JSON.stringify(myObjaData)
+  // 把序列化的JSON数据转换为字节数组
+  let uint8array = (new TextEncoder('utf-8')).encode(strData)
+  // 计算要画的图像的大小,该大小足以存储这些数据（uint8array）
+  // 图像基本上是2D像素阵列。每个像素是3个字节的元组
+  let dataSize = Math.ceil(Math.sqrt(uint8array.length / 3))
+
+// 2. 将字节数组转换为图像数据
+  let paddedData = new Uint8ClampedArray(dataSize * dataSize * 4)
+  let idx = 0
+  for (let i = 0; i < uint8array.length; i += 3) {
+    let subArray = uint8array.subarray(i, i + 3)
+    paddedData.set(subArray, idx)
+    paddedData.set([255], idx + 3)
+    idx += 4
+  }
+  let imageData = new ImageData(paddedData, dataSize, dataSize)
+
+// 3. 绘制图像
+  let imgSize = 256
+  let canvas = document.createElement('canvas')
+  canvas.width = canvas.height = imgSize
+  let ctx = canvas.getContext('2d')
+  // 颜色随便
+  ctx.fillStyle = '#AA000'
+  ctx.fillRect(0, 0, imgSize, imgSize)
+
+  ctx.fillStyle = 'rgba('+ dataSize +',0 ,0)'
+  ctx.fillRect(0, 0, 1, 1)
+  ctx.putImageData(imageData, 0, 1)
+
+// 4. 保存图像
+  function parseDom (str) {
+    let divTag = document.createElement('div')
+    divTag.innerHTML = str
+    return divTag.firstElementChild
+  }
+  let aTag = parseDom('<a id="hiddenLink" href="'+ canvas.toDataURL() +'" style="display:none" download="image.png">下载</a>')
+  document.body.appendChild(aTag)
+  let link = document.getElementById('hiddenLink')
+  let event = document.createEvent('MouseEvents')
+  event.initEvent('click', true, true)
+  link.dispatchEvent(event)
+  link.parentNode.removeChild(link)
+</script>
+</body>
+</html>

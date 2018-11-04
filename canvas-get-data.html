@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
+  <title>使用HTML canvas和Javascript从被劫持的PNG图像中检索数据</title>
+</head>
+<body>
+
+<script>
+// 1. 加载
+  let img = new Image()
+  img.onload = function () {
+    console.log('onload')
+    draw()
+  }
+  img.src = 'image.png'
+
+  function draw() {
+// 2. 将图像绘制到画布
+    let imgSize = img.width
+
+    let canvas = document.createElement('canvas')
+    canvas.width = canvas.height = imgSize
+
+    let ctx = canvas.getContext('2d')
+    ctx.drawImage(img, 0, 0)
+// 3. 将像素转换为字节数组
+    let headerData = ctx.getImageData(0, 0, 1, 1)
+    let dataSize = headerData.data[0]
+
+    let imageData = ctx.getImageData(0, 1, dataSize, dataSize)
+    let paddedData = imageData.data
+    let uint8array = new Uint8Array(paddedData.length / 4 * 3)
+
+    let idx = 0
+    for (let i = 0; i < paddedData.length - 1; i += 4) {
+      let subArray = paddedData.subarray(i, i + 3)
+      uint8array.set(subArray, idx)
+      idx += 3
+    }
+
+    let includeBytes = uint8array.length
+    for (let i = uint8array.length - 1; i > 0; i--) {
+      if (uint8array[i] == 0) {
+        includeBytes--
+      } else {
+        break
+      }
+    }
+// 4. 解码字节数组
+    let data = uint8array.subarray(0, includeBytes)
+    let strData = (new TextDecoder('utf-8').decode(data))
+    console.log(strData)
+    console.log(JSON.parse(strData))
+  }
+</script>
+</body>
+</html>
